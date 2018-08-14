@@ -1,14 +1,15 @@
 """
-Support for Eneco's Toon thermostats.
-Only the rooted version.
+Support for Zway z-wave thermostats.
 
 configuration.yaml
 
 climate:
-  - platform: toon
-    name: Toon Thermostat
+  - platform: zway
+    name: bedroom
     host: IP_ADDRESS
-    port: 10080
+    port: 8083
+    login: admin
+    password: admin
     scan_interval: 10
 """
 import logging
@@ -26,18 +27,24 @@ SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_OPERATION_MODE
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = 'Toon Thermostat'
+DEFAULT_NAME = 'Zway Thermostat'
 DEFAULT_TIMEOUT = 5
 BASE_URL = 'http://{0}:{1}{2}'
+DEFAULT_AWAY_TEMP = 16
+DEFAULT_TARGET_TEMP = 21
 
 ATTR_MODE = 'mode'
-STATE_MANUAL = 'manual'
-STATE_UNKNOWN = 'unknown'
+STATE_OFF = 'off'
+STATE_HEATING = 'heat'
+AWAY_TEMP = 'away_temp'
+TARGET_TEMP = 'target_temp'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    vol.Required(CONF_HOST): cv.string,
-    vol.Optional(CONF_PORT, default=10800): cv.positive_int,
+    vol.Required(CONF_HOST, default=127.0.0.1): cv.string,
+    vol.Optional(CONF_PORT, default=8083): cv.positive_int,
+    vol.Optional(CONF_PORT, default=DEFAULT_TARGET_TEMP): cv.positive_int,
+    vol.Optional(CONF_PORT, default=DEFAULT_AWAY_TEMP): cv.positive_int,
 })
 
 
@@ -50,7 +57,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 # pylint: disable=abstract-method
 # pylint: disable=too-many-instance-attributes
 class ThermostatDevice(ClimateDevice):
-    """Representation of a Toon thermostat."""
+    """Representation of a Zwave thermostat."""
 
     def __init__(self, name, host, port):
         """Initialize the thermostat."""
@@ -58,12 +65,14 @@ class ThermostatDevice(ClimateDevice):
         self._name = name
         self._host = host
         self._port = port
+        self._login = login
+        self._password = password
         self._current_temp = None
         self._current_setpoint = None
         self._current_state = -1
         self._current_operation = ''
         self._set_state = None
-        self._operation_list = ['Comfort', 'Home', 'Sleep', 'Away', 'Holiday']
+        self._operation_list = ['Heat', 'Home', 'Sleep', 'Away', 'Holiday']
         _LOGGER.debug("Init called")
         self.update()
 
